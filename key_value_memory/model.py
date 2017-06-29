@@ -1,4 +1,3 @@
-"""Example running MemN2N on the CBT data."""
 from __future__ import absolute_import
 from __future__ import print_function
 
@@ -368,8 +367,8 @@ with tf.Graph().as_default():
         #                                idx2word)
 
         # Run t-SNE on word representation matrix and visualize it
-        # tsne_viz(sess.run(model.W), ['nil_word'] + vocab, "{}tsne_W.svg".format(log_dir))
-        # tsne_viz(sess.run(model.W_memory), ['nil_word'] + vocab, "{}tsne_W_memory.svg".format(log_dir))
+        # tsne_viz(sess.run(model.A), ['nil_word'] + vocab, "{}tsne_A.svg".format(log_dir))
+        # tsne_viz(sess.run(model.B), ['nil_word'] + vocab, "{}tsne_B.svg".format(log_dir))
 
 # Close files where the training set is loaded from
 fs_train.close()

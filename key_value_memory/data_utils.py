@@ -3,7 +3,6 @@ from __future__ import absolute_import
 import json
 import os
 import re
-from pprint import pprint
 from itertools import chain
 
 from matplotlib import pylab as plt
@@ -15,87 +14,10 @@ import tables
 from tsne_python.tsne import tsne
 
 
-def load_task(data_dir, task_id, only_supporting=False):
-    """Load the nth task. There are 20 tasks in total.
-
-    Returns a tuple containing the training and testing data for the task.
-    """
-    assert 0 < task_id < 21
-
-    files = os.listdir(data_dir)
-    files = [os.path.join(data_dir, f) for f in files]
-    s = 'qa{}_'.format(task_id)
-    train_file = [f for f in files if s in f and 'train' in f][0]
-    test_file = [f for f in files if s in f and 'test' in f][0]
-    train_data = get_stories(train_file, only_supporting)
-    test_data = get_stories(test_file, only_supporting)
-    return train_data, test_data
-
-
-def get_stories(f, only_supporting=False):
-    """Given a file name, read the file, retrieve the stories, and then convert the sentences into a single story.
-    If max_length is supplied, any stories longer than max_length tokens will be discarded.
-    """
-    with open(f) as f:
-        return parse_stories(f.readlines(), only_supporting=only_supporting)
-
-
-def parse_stories(lines, only_supporting=False):
-    """Parse stories provided in the bAbI tasks format
-    If only_supporting is true, only the sentences that support the answer are kept.
-
-    Parameters
-    ----------
-    lines : list of str
-        The list of lines from a file that contains one bAbI task.
-    only_supporting : bool
-        If this is set to True, only the sentences that support the answer are kept.
-
-    Returns
-    ----------
-    data : list
-        The data representing the bAbI task. Each element in this list is a (Story, Query, Answer) tuple.
-    """
-    data = []
-    story = []
-    for line in lines:
-        line = str.lower(line)
-        nid, line = line.split(' ', 1)
-        nid = int(nid)
-        if nid == 1:
-            story = []
-        if '\t' in line:  # question
-            q, a, supporting = line.split('\t')
-            q = tokenize(q)
-            # a = tokenize(a)
-            # answer is one vocab word even if it's actually multiple words
-            a = [a]
-
-            # remove question marks
-            if q[-1] == "?":
-                q = q[:-1]
-
-            if only_supporting:
-                # Only select the related substory
-                supporting = map(int, supporting.split())
-                substory = [story[i - 1] for i in supporting]
-            else:
-                # Provide all the substories
-                substory = [x for x in story if x]
-
-            data.append((substory, q, a))
-            story.append('')
-        else:  # regular sentence
-            # remove periods
-            sent = tokenize(line)
-            if sent[-1] == ".":
-                sent = sent[:-1]
-            story.append(sent)
-    return data
-
-
 def load_data(data, training_percentage, testing_percentage, memory_representation, window_size, filter=None):
     """Load the data from its files.
+
+    Each element in both training and testing sets is a (Story, Query, Answer Candidates, Answer) tuple.
 
     Parameters
     ----------
@@ -109,13 +31,17 @@ def load_data(data, training_percentage, testing_percentage, memory_representati
         The memory representation of the Key-Value Memory Network.
     window_size : int
         The size of a window in case of a window memory.
+    filter : dict, optional :
+        The dictionary containing all words (tokens) that should be filtered out. A key in this dictionary corresponds
+        to a token, and its respective value is the term frequency of the key in the entire corpus.
+        If it is None, then no filter is applied.
 
     Returns
     ----------
     train_data : list
-        The loaded training set. Each element in this set is a (Story, Query, Candidates, Answer) tuple.
+        The loaded training set.
     test_data : list
-        The loaded testing set. Each element in this set is a (Story, Query, Candidates, Answer) tuple.
+        The loaded testing set.
     """
     prefix = '../../data/'
     data_dir = {'cbt': 'CBTest/data/', 'squad': 'SQuAD/', 'cnn': 'cnn/questions/'}
@@ -150,6 +76,29 @@ def load_data(data, training_percentage, testing_percentage, memory_representati
 
 
 def get_data(filename, percentage, memory_representation, window_size, filter):
+    """Get the data from the filename. This is a general function to call the function corresponding the dataset.
+
+    Each element in the output is a (Context, Query, Answer Candidates, Answer) tuple.
+
+    Parameters
+    ----------
+    filename : str
+        The name of the file where the dataset will be retrieved from.
+    percentage : float
+        The percentage of the data set to load. This is useful for running the model on a sample data set.
+    memory_representation : str
+        The memory representation of the Key-Value Memory Network.
+    window_size : int
+        The size of a window in case of a window memory.
+    filter : dict, optional :
+        The dictionary containing all words (tokens) that should be filtered out.
+        If it is None, then no filter is applied.
+
+    Returns
+    ----------
+    data : list
+        The data that is loaded from the file.
+    """
     if 'CBTest' in filename:
         return get_cbt_data(filename, percentage, memory_representation, window_size, filter)
     elif 'SQuAD' in filename:
@@ -159,14 +108,28 @@ def get_data(filename, percentage, memory_representation, window_size, filter):
 
 
 def get_cbt_data(filename, percentage, memory_representation, window_size, filter):
-    """
-    Get the CBT data set.
+    """Get the data from the filename, respecting the format of CBT.
 
-    :param filename: name of the file where the data is saved.
-    :param percentage: percentage of the data set to load.
-    :param memory_representation: memory representation (i.e., sentence-level or window-level).
-    :param window_size: number of words in the window if the memory is window-level.
-    :return: data.
+    Each element in the output is a (Context, Query, Answer Candidates, Answer) tuple.
+
+    Parameters
+    ----------
+    filename : str
+        The name of the file where the dataset will be retrieved from.
+    percentage : float
+        The percentage of the data set to load. This is useful for running the model on a sample data set.
+    memory_representation : str
+        The memory representation of the Key-Value Memory Network.
+    window_size : int
+        The size of a window in case of a window memory.
+    filter : dict, optional :
+        The dictionary containing all words (tokens) that should be filtered out.
+        If it is None, then no filter is applied.
+
+    Returns
+    ----------
+    data : list
+        The data that is loaded from the file.
     """
     files_size = {'cbtest_NE_train.txt': 67128, 'cbtest_NE_valid_2000ex.txt': 2000, 'cbtest_NE_test_2500ex.txt': 2500,
                   'cbtest_CN_train.txt': 121176, 'cbtest_CN_valid_2000ex.txt': 2000, 'cbtest_CN_test_2500ex.txt': 2500,
@@ -241,13 +204,31 @@ def get_cbt_data(filename, percentage, memory_representation, window_size, filte
 
 
 def get_squad_data(filename, percentage, memory_representation, window_size, filter):
-    """
-    Get the SQuAD data set.
+    """Get the data from the filename, respecting the format of SQuAD.
 
-    :param filename:
-    :param percentage:
-    :param memory_representation:
-    :param window_size:
+    Each element in the output is a (Context, Query, Answer Candidates, Answer) tuple.
+
+    This function is not being updated since the vocabulary restriction module has ben added to the model.
+    Therefore, even though the function takes a filter as an argument, it does not make use of it.
+
+    Parameters
+    ----------
+    filename : str
+        The name of the file where the dataset will be retrieved from.
+    percentage : float
+        The percentage of the data set to load. This is useful for running the model on a sample data set.
+    memory_representation : str
+        The memory representation of the Key-Value Memory Network.
+    window_size : int
+        The size of a window in case of a window memory.
+    filter : dict, optional :
+        The dictionary containing all words (tokens) that should be filtered out.
+        If it is None, then no filter is applied.
+
+    Returns
+    ----------
+    data : list
+        The data that is loaded from the file.
     """
     # Dictionary that maps each set to its respective size
     files = {'train-v1.1.json': 87599, 'dev-v1.1.json': 10570}
@@ -336,6 +317,28 @@ def get_squad_data(filename, percentage, memory_representation, window_size, fil
 
 
 def get_cnn_data(filename, memory_representation, window_size, filter):
+    """Get the data from the filename, respecting the format of CNN QA.
+    \nThis function could be used also for DailyMail QA.
+
+    Each element in the output is a (Context, Query, Answer Candidates, Answer) tuple.
+
+    Parameters
+    ----------
+    filename : str
+        The name of the file where the dataset will be retrieved from.
+    memory_representation : str
+        The memory representation of the Key-Value Memory Network.
+    window_size : int
+        The size of a window in case of a window memory.
+    filter : dict, optional
+        The dictionary containing all words (tokens) that should be filtered out.
+        If it is None, then no filter is applied.
+
+    Returns
+    ----------
+    data : list
+        The data that is loaded from the file.
+    """
     data = []
     with open(filename) as f:
         story = []
@@ -398,8 +401,23 @@ def get_cnn_data(filename, memory_representation, window_size, filter):
     return data
 
 
-def tokenize(sent, data='babi'):
-    """Return the tokens of a sentence removing symbols.
+def tokenize(sent, data):
+    """Return an ordered list of tokens in the sentence. Tokens that do not contain any alphanumerical character
+    are discarded.
+
+    The process differs for each dataset.
+
+    Parameters
+    ----------
+    sent : str
+        The sentence to be tokenized.
+    data : str
+        The data the model is going to run on.
+
+    Returns
+    ----------
+    output : list
+        The ordered list of tokens in the sentence.
     """
     if data in ['cbt', 'cnn']:
         return [x for x in sent.split(' ') if any(c.isalnum() for c in x)]
@@ -414,17 +432,55 @@ def tokenize(sent, data='babi'):
 
 
 def vectorize_data(data, word_idx, sentence_size, memory_size, candidates_size, path):
-    """
-    Vectorize stories and queries.
+    """Transform the dataset from strings to integer values. Each sentence (and query) is represented as a
+    a list of tokens. This function creates a vector of a constant dimension, which is technically still a list in
+    Python, from each sentence. It maps each token in the sentence to its corresponding index value.
 
-    If a sentence length < sentence_size, the sentence will be padded with 0's.
+    If the number of tokens in the sentence is smaller than `sentence_size`,
+    then the sentence vector will be padded with 0's.
 
-    If a story length < memory_size, the story will be padded with empty memories.
-    Empty memories are 1-D arrays of length sentence_size filled with 0's.
+    If the number of memories for a given query is smalled than `memory_size`,
+    then the context will be padded with empty memories.
+    Empty memories are 1-D arrays of length `sentence_size` filled with 0's.
 
-    The answer array is returned as a one-hot encoding.
+    The answer array is returned as a 1-D array of length 1 even though it is one-hot encoding in the original paper
+    for memory efficiency.
 
-    The vectorized data is written into files in order to reduce the memory usage.
+    The vectorized data is written into files in order to reduce the memory usage during training.
+
+    Parameters
+    ----------
+    data : list
+        The data that wil be vectorized. Each element in this list is a QA tuple.
+    word_idx : dict
+        The dictionary in which the key is a token and the corresponding value is its index value.
+    sentence_size : int
+        The maximum number of tokens in a sentence.
+    memory_size : int
+        The maximum number of slots in a memory.
+    candidates_size : int
+        The maximum number of answer candidates in a QA tuple.
+    path : str
+        The path to write down the vectorized data. If in the given path there are files with the same name as
+        the ones this function is supposed to create, then the function does not do anything and just returns the
+        name of the existing files. The idea behind this approach is that if these files already exist, then the model
+        was already run with this dataset, and thus it is not required to process the data again.
+
+    Returns
+    ----------
+    fs.filename : str
+        The name of the file where the context of tuple is written. The context is shaped such that each line
+        corresponds to one context.
+        The dimension of the file is (data size, memory size x sentence size).
+    fq.filename : str
+        The name of the file where the query of each tuple is written.
+        The dimension of the file is (data size, sentence size).
+    fc.filename : str
+        The name of the file where the answer candidates of each tuple are written.
+        The dimension of the file is (data size, candidates size).
+    fa.filename : str
+        The name of the file where the answer of each tuple is written.
+        The dimension of the file is (data size, 1).
     """
     full_path = path.replace('xxx', 'arrays', 1)
 
@@ -481,6 +537,27 @@ def vectorize_data(data, word_idx, sentence_size, memory_size, candidates_size, 
 
 
 def tsne_viz(X, vocab, output_filename, colors=None, no_dims=2, initial_dims=50, perplexity=30.0):
+    """Plot a 2-dimensional graph by applying t-SNE on the embedding matrix X to represent the vocabulary.
+    It also saves the figure.
+
+    Parameters
+    ----------
+    X : array shaped list
+        The embedding matrix.
+    vocab : dict
+        The list of all tokens in the data. It is alphabetically sorted.
+    output_filename : str
+        The name of the figure.
+    colors : list
+        A list with the same first dimension as X to indicate the annotation color of each token.
+        If it is None, then the default color black is used for each token.
+    no_dims : int
+        The output dimension of t-SNE.
+    initial_dims : int
+        The output dimension of PCA, that is applied on X before going through t-SNE.
+    perplexity : float
+        The perplexity.
+    """
     assert X.shape[0] == len(vocab), "Error: X and vocab must have same dimensions."
 
     if colors is None:

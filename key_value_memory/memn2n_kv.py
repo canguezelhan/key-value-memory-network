@@ -1,7 +1,3 @@
-"""Key Value Memory Networks with GRU reader.
-The implementation is based on https://arxiv.org/abs/1606.03126
-The implementation is based on http://arxiv.org/abs/1503.08895 [1]
-"""
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
