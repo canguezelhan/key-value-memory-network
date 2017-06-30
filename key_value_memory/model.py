@@ -3,7 +3,7 @@ from __future__ import print_function
 
 import logging
 import time
-from itertools import chain, dropwhile
+from itertools import chain
 from collections import Counter
 
 import numpy as np
