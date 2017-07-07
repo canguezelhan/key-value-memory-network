@@ -43,7 +43,7 @@ def load_data(data, training_percentage, testing_percentage, memory_representati
     test_data : list
         The loaded testing set.
     """
-    prefix = '../../data/'
+    prefix = 'data/'
     data_dir = {'cbt': 'CBTest/data/', 'squad': 'SQuAD/', 'cnn': 'cnn/questions/'}
     # Dictionary that maps each set to its respective size
     cnn_files = {'training': 380298, 'test': 3198}
