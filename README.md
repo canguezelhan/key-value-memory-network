@@ -25,9 +25,9 @@ python model.py
 
 #### Running model.py
 
-The script, when executed, creates several files as output. These files can be found in the directory key_value_memory/results0/
+The script, when executed, creates several files as output. These files can be found in the directory key_value_memory/results/
 
-There are serval flags within model.py. Check all avaiable flags with the following command.
+There are serval flags within model.py. Check all available flags with the following command.
 ```
 python model.py -h
 ```
