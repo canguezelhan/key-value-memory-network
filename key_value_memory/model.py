@@ -67,7 +67,7 @@ if FLAGS.glove:
     assert FLAGS.embedding_size in [50, 100, 200, 300], 'Wrong input for embedding_size: {} given, 50, 100, 200 or 300 expected.'.format(FLAGS.embedding_size)
 
 data_set = {'cbt': 'CBTest', 'squad': 'SQuAD', 'cnn': 'cnn'}
-path = "results0/{}/xxx/{}/".format(data_set[FLAGS.data], FLAGS.memory_representation)
+path = "results/{}/xxx/{}/".format(data_set[FLAGS.data], FLAGS.memory_representation)
 log_dir = path.replace('xxx', 'logs', 1)
 
 # Name of the logs file
