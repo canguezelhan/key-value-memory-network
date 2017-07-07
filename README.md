@@ -7,16 +7,18 @@ This repository contains the implementation of [Key Value Memory Networks for Di
 ### Get Started
 
 ```
-git clone https://github.com/siyuanzhao/key-value-memory-networks.git
+git clone https://github.com/canguezelhan/key-value-memory-network.git
 
-mkdir ./key-value-memory-networks/key_value_memory/logs
-mkdir ./key-value-memory-networks/key_value_memory/data/
-cd ./key-value-memory-networks/key_value_memory/data
-wget http://www.thespermwhale.com/jaseweston/babi/tasks_1-20_v1-2.tar.gz
-tar xzvf ./tasks_1-20_v1-2.tar.gz
+mkdir ./key-value-memory-network/key_value_memory/logs
+mkdir ./key-value-memory-network/key_value_memory/data/
+cd ./key-value-memory-network/key_value_memory/data
+wget http://www.thespermwhale.com/jaseweston/babi/CBTest.tgz
+tar xzvf ./CBTest.tgz
+wget https://drive.google.com/uc?export=download&id=0BwmD_VLjROrfTTljRDVZMFJnVWM
+tar xzvf ./cnn.tgz
 
 cd ../
-python single.py
+python model.py
 ```
 
 ### Usage
